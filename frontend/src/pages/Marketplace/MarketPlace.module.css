@@ -1,0 +1,172 @@
+.main {
+  margin-top: 5rem;
+}
+
+.marketplace {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: auto;
+  margin-top: 10rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  color: #555;
+}
+
+.header h2 {
+  font-size: 2rem;
+  color: #343434;
+  font-weight: bold;
+}
+
+.filterToggle {
+  display: none;
+  padding: 0.6rem 1rem;
+  background-color: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filters select {
+  padding: 0.6rem 1rem;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.filters select:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 5px rgba(163, 174, 255, 0.5);
+}
+
+.filters select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 4rem;
+  margin-top: 5rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(106, 106, 106, 0.04);
+  transition: box-shadow 0.3s ease;
+  min-width: 16rem;
+  height: auto;
+}
+
+.card:hover {
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cardHeader h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #444444;
+}
+
+.tag {
+  background-color: #e3dbfa;
+  color: #7b61ff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.description {
+  font-size: 0.95rem;
+  color: #555555;
+  margin: 2.5rem 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+}
+
+.stats div {
+  text-align: center;
+}
+
+.statsheading {
+  color: #4a4a4a;
+  font-size: 0.9rem;
+}
+
+.stats p {
+  font-weight: bold;
+  color: #434343;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .filterToggle {
+    display: block;
+  }
+
+  .filters {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 1rem;
+  }
+
+  .filters select {
+    width: 100%;
+  }
+
+  .showFilters {
+    display: flex;
+  }
+
+  .cardsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width:440px){
+    .marketplace{
+
+        /* padding: 1rem; */
+    }
+    .main{
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+        /* background-color: red; */
+    }
+}
