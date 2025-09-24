@@ -4,19 +4,37 @@ import { Navbar } from '../../components/Navbar/Navbar';
 import { Footer } from '../../components/Footer/Footer';
 import { Link } from 'react-router-dom';
 import styles from './Dashboard.module.css';
-import { userAPI } from '../../utils/apiServices';
+import { userAPI, positionAPI } from '../../utils/apiServices';
 
 const Dashboard = () => {
   const { user, isEntrepreneur, isStudent, isInvestor, loading: authLoading, isAuthenticated } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myStartups, setMyStartups] = useState([]);
+  const [startupIdToPositions, setStartupIdToPositions] = useState({});
 
   useEffect(() => {
-    // Only load dashboard data after authentication is complete
-    if (!authLoading && isAuthenticated && user) {
-      console.log('🏠 Dashboard: Auth complete, loading dashboard data...');
-      loadDashboardData();
+    // Load dashboard data when authentication is complete
+    if (!authLoading && isAuthenticated) {
+      if (user) {
+        console.log('🏠 Dashboard: Auth complete, loading dashboard data...');
+        loadDashboardData();
+      } else {
+        console.log('🏠 Dashboard: Authenticated but no user data yet, waiting...');
+        // Set a timeout to prevent infinite waiting
+        const timeout = setTimeout(() => {
+          if (!user) {
+            console.log('⚠️ Dashboard: User data timeout, proceeding with limited data');
+            setLoading(false);
+          }
+        }, 5000); // 5 second timeout
+        
+        return () => clearTimeout(timeout);
+      }
+    } else if (!authLoading && !isAuthenticated) {
+      console.log('🏠 Dashboard: Not authenticated');
+      setLoading(false);
     } else {
       console.log('🏠 Dashboard: Waiting for auth...', { authLoading, isAuthenticated, hasUser: !!user });
     }
@@ -29,6 +47,31 @@ const Dashboard = () => {
       
       setStats(response.data.stats);
       setRecentActivity(response.data.applications?.slice(0, 5) || []);
+
+      // Save user's startups
+      const startups = response.data.startups || [];
+      setMyStartups(startups);
+
+      // Fetch positions for each startup (inline listing)
+      if (startups.length > 0) {
+        const positionPromises = startups.map(async (s) => {
+          try {
+            const res = await positionAPI.getStartupPositions(s.id);
+            const positions = res.data?.positions || (Array.isArray(res.data) ? res.data : []);
+            return [s.id, positions];
+          } catch (e) {
+            return [s.id, []];
+          }
+        });
+        const results = await Promise.all(positionPromises);
+        const map = results.reduce((acc, [id, positions]) => {
+          acc[id] = positions;
+          return acc;
+        }, {});
+        setStartupIdToPositions(map);
+      } else {
+        setStartupIdToPositions({});
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -102,6 +145,64 @@ const Dashboard = () => {
             <p>Connect with potential team members</p>
           </Link>
         </div>
+      </div>
+
+      {/* My Positions inline */}
+      <div className={styles.section}>
+        <h2>My Positions</h2>
+        {myStartups.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>You have no startups yet. Create one to start hiring.</p>
+            <Link to="/createstartup" className={styles.statAction}>Create Startup</Link>
+          </div>
+        ) : (
+          <div className={styles.listGroup}>
+            {myStartups.map((s) => {
+              const positions = startupIdToPositions[s.id] || [];
+              const openCount = positions.filter(p => p.is_active).length;
+              return (
+                <div key={s.id} className={styles.itemCard}>
+                  <div className={styles.itemHeader}>
+                    <div>
+                      <h3>{s.title}</h3>
+                      <p>{s.description?.substring(0, 120)}{(s.description && s.description.length > 120) ? '…' : ''}</p>
+                    </div>
+                    <div className={styles.itemActions}>
+                      <Link to={`/startups/${s.id}/positions`} className={styles.statAction}>Manage Positions</Link>
+                    </div>
+                  </div>
+                  {positions.length === 0 ? (
+                    <div className={styles.emptyRow}>
+                      <span>No positions yet.</span>
+                      <Link to={`/startups/${s.id}/positions`} className={styles.statAction}>Create Position</Link>
+                    </div>
+                  ) : (
+                    <div className={styles.table}>
+                      <div className={styles.tableHeader}>
+                        <div>Title</div>
+                        <div>Status</div>
+                        <div>Applications</div>
+                        <div>Posted</div>
+                        <div></div>
+                      </div>
+                      {positions.map((p) => (
+                        <div key={p.id} className={styles.tableRow}>
+                          <div>{p.title}</div>
+                          <div>{p.is_active ? 'Active' : 'Closed'}</div>
+                          <div>{p.applications_count || 0}</div>
+                          <div>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '-'}</div>
+                          <div>
+                            <Link to={`/positions/${p.id}/applications`} className={styles.statAction}>View Applications</Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -216,13 +317,46 @@ const Dashboard = () => {
     </div>
   );
 
+  // If we have authentication but no user data, show a basic dashboard
+  const renderFallbackDashboard = () => (
+    <div className={styles.dashboard}>
+      <div className={styles.welcome}>
+        <h1>Welcome to your Dashboard!</h1>
+        <p>Loading your profile data...</p>
+      </div>
+      <div className={styles.quickActions}>
+        <h2>Quick Actions</h2>
+        <div className={styles.actionGrid}>
+          <Link to="/search" className={styles.actionCard}>
+            <h3>Search</h3>
+            <p>Find opportunities and startups</p>
+          </Link>
+          <Link to="/account" className={styles.actionCard}>
+            <h3>Profile</h3>
+            <p>Update your profile information</p>
+          </Link>
+          <Link to="/message" className={styles.actionCard}>
+            <h3>Messages</h3>
+            <p>Connect with others</p>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Navbar />
       <div className={styles.container}>
-        {isEntrepreneur() && renderEntrepreneurDashboard()}
-        {isStudent() && renderStudentDashboard()}
-        {isInvestor() && renderInvestorDashboard()}
+        {user ? (
+          <>
+            {isEntrepreneur() && renderEntrepreneurDashboard()}
+            {isStudent() && renderStudentDashboard()}
+            {isInvestor() && renderInvestorDashboard()}
+          </>
+        ) : (
+          renderFallbackDashboard()
+        )}
       </div>
       <Footer />
     </>

@@ -29,8 +29,8 @@ const InvestorDashboard = () => {
         marketplaceAPI.getMarketplace({ limit: 6 })
       ]);
       
-      setFavorites(favoritesRes.data || []);
-      setInterests(interestsRes.data || []);
+      setFavorites((favoritesRes.data && favoritesRes.data.results) ? favoritesRes.data.results : Array.isArray(favoritesRes.data) ? favoritesRes.data : []);
+      setInterests((interestsRes.data && interestsRes.data.results) ? interestsRes.data.results : Array.isArray(interestsRes.data) ? interestsRes.data : []);
       setRecommendedStartups(marketplaceRes.data.results || []);
     } catch (error) {
       console.error('Failed to load investor dashboard:', error);

@@ -3,9 +3,8 @@ import { Navbar } from '../../components/Navbar/Navbar';
 import { Footer } from '../../components/Footer/Footer';
 import MarketPlaceCard from "../../components/MarketPlaceCard/MarketPlaceCard";
 import styles from "./MarketPlace.module.css";
-import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_BASE_URL } from '../../utils/api';
+import apiClient from '../../utils/axiosConfig';
 
 const Marketplace = () => {
   const [startups, setStartups] = useState([]);
@@ -34,9 +33,7 @@ const Marketplace = () => {
       if (filters.minRevenue) params.append('minRevenue', filters.minRevenue);
       if (filters.maxRevenue) params.append('maxRevenue', filters.maxRevenue);
 
-      const response = await axios.get(`${API_BASE_URL}/api/marketplace?${params}`, {
-        withCredentials: true
-      });
+      const response = await apiClient.get(`/api/marketplace?${params}`);
       
       setStartups(response.data.results || []);
     } catch (error) {

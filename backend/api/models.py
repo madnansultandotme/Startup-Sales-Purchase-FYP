@@ -184,55 +184,6 @@ class Application(models.Model):
 		return f"{self.applicant.username} - {self.startup.title} - {self.position.title}"
 
 
-class EmailVerificationCode(models.Model):
-	"""Email verification codes for users"""
-	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_codes')
-	code = models.CharField(max_length=6)  # 6-digit verification code
-	expires_at = models.DateTimeField()
-	is_used = models.BooleanField(default=False)
-	created_at = models.DateTimeField(auto_now_add=True)
-	
-	class Meta:
-		db_table = 'email_verification_codes'
-		indexes = [
-			models.Index(fields=['user']),
-			models.Index(fields=['code']),
-			models.Index(fields=['expires_at']),
-			models.Index(fields=['is_used']),
-		]
-	
-	def __str__(self):
-		return f"{self.user.email} - {self.code}"
-
-
-class UserSession(models.Model):
-	"""User sessions for token management"""
-	TOKEN_TYPE_CHOICES = [
-		('access', 'Access Token'),
-		('refresh', 'Refresh Token'),
-	]
-	
-	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions')
-	token_hash = models.CharField(max_length=255)
-	token_type = models.CharField(max_length=10, choices=TOKEN_TYPE_CHOICES, default='access')
-	expires_at = models.DateTimeField()
-	created_at = models.DateTimeField(auto_now_add=True)
-	
-	class Meta:
-		db_table = 'user_sessions'
-		indexes = [
-			models.Index(fields=['user']),
-			models.Index(fields=['token_hash']),
-			models.Index(fields=['expires_at']),
-		]
-	
-	def is_expired(self):
-		return timezone.now() > self.expires_at
-	
-	def __str__(self):
-		return f"{self.user.username} - {self.created_at}"
 
 
 class Notification(models.Model):

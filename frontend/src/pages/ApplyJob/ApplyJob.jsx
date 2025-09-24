@@ -3,10 +3,9 @@ import styles from "./ApplyJob.module.css";
 import { Navbar } from "../../components/Navbar/Navbar";
 import { Footer } from "../../components/Footer/Footer";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_BASE_URL } from '../../utils/api';
+import apiClient from '../../utils/axiosConfig';
 
 const ApplyJob = () => {
   const { startupId } = useParams();
@@ -44,9 +43,7 @@ const ApplyJob = () => {
 
   const loadStartupDetails = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/startups/${startupId}`, {
-        withCredentials: true
-      });
+      const response = await apiClient.get(`/api/startups/${startupId}`);
       setStartup(response.data);
     } catch (error) {
       console.error('Failed to load startup details:', error);
@@ -59,9 +56,7 @@ const ApplyJob = () => {
 
   const loadPositions = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/startups/${startupId}/positions`, {
-        withCredentials: true
-      });
+      const response = await apiClient.get(`/api/startups/${startupId}/positions`);
       const positionData = response.data.positions || response.data;
       setPositions(positionData);
       
@@ -122,8 +117,7 @@ const ApplyJob = () => {
         submitData.append('resume', formData.resume);
       }
 
-      await axios.post(`${API_BASE_URL}/api/collaborations/${startupId}/apply`, submitData, {
-        withCredentials: true,
+      await apiClient.post(`/api/collaborations/${startupId}/apply`, submitData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

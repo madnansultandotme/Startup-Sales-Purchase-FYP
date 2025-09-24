@@ -10,6 +10,8 @@ urlpatterns = [
 	# Authentication endpoints
 	path('signup', views.SignupView.as_view(), name='signup'),
 	path('auth/login', views.LoginView.as_view(), name='login'),
+	path('auth/test', views.auth_test, name='auth_test'),
+	path('auth/cookie-test', views.cookie_test, name='cookie_test'),
 	path('auth/refresh', views.RefreshTokenView.as_view(), name='refresh_token'),
 	path('auth/forget-password', views.forget_password, name='forget_password'),
 	path('auth/send-verification-code', views.SendVerificationCodeView.as_view(), name='send_verification_code'),

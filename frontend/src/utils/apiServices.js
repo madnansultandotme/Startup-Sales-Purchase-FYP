@@ -7,12 +7,17 @@ export const authAPI = {
   logout: () => apiClient.post('/auth/logout'),
   verifyEmail: (token) => apiClient.post('/auth/verify', { token }),
   forgotPassword: (email) => apiClient.post('/auth/forget-password', { email }),
+  refresh: () => apiClient.post('/auth/refresh'),
+  sendVerificationCode: (email) => apiClient.post('/auth/send-verification-code', { email }),
+  testAuth: () => apiClient.get('/auth/test'),
+  testCookie: () => apiClient.get('/auth/cookie-test'),
   getAccountByToken: (token) => apiClient.get(`/account/${token}`),
 };
 
 // User management endpoints
 export const userAPI = {
   getProfile: () => apiClient.get('/api/users/profile'),
+  getProfileDetail: () => apiClient.get('/api/users/profile-detail'),
   updateProfile: (data) => apiClient.put('/api/users/profile', data),
   patchProfile: (data) => apiClient.patch('/api/users/profile', data),
   getProfileData: () => apiClient.get('/api/users/profile-data'),
@@ -102,7 +107,7 @@ export const uploadAPI = {
   },
   uploadResume: (file, onUploadProgress) => {
     const formData = new FormData();
-    formData.append('resume', file);
+    formData.append('file', file);
     return apiClient.post('/api/upload/resume', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress
@@ -110,7 +115,7 @@ export const uploadAPI = {
   },
   uploadStartupImage: (file, onUploadProgress) => {
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
     return apiClient.post('/api/upload/startup-image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress
@@ -118,7 +123,7 @@ export const uploadAPI = {
   },
   uploadProfilePicture: (file, onUploadProgress) => {
     const formData = new FormData();
-    formData.append('profile_picture', file);
+    formData.append('file', file);
     return apiClient.post('/api/upload/profile-picture', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress

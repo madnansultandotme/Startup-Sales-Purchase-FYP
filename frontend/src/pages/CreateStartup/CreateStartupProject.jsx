@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../utils/axiosConfig';
+import { debugAuthStatus } from '../../utils/authDebug';
 
 const CreateStartupProject = () => {
   const navigate = useNavigate();
@@ -93,45 +94,46 @@ const CreateStartupProject = () => {
     console.log('👤 Current user:', user);
     console.log('🔐 Authentication status:', user ? 'Authenticated' : 'Not authenticated');
     
-    // DEBUG: Check token status before API call
-    const accessToken = localStorage.getItem('access_token');
-    const cookieToken = document.cookie.split(';').find(row => row.trim().startsWith('token='));
-    console.log('🎫 DEBUG - Access token from localStorage:', accessToken ? `${accessToken.substring(0, 30)}...` : 'NOT FOUND');
-    console.log('🍪 DEBUG - Token from cookies:', cookieToken ? cookieToken.substring(0, 50) + '...' : 'NOT FOUND');
-    console.log('🔍 DEBUG - All cookies:', document.cookie);
-    console.log('💾 DEBUG - All localStorage keys:', Object.keys(localStorage));
-    
-    // If no token found, show error immediately
-    if (!accessToken && !cookieToken) {
-      console.error('❌ CRITICAL: No authentication token found!');
+    // Simple authentication check using AuthContext
+    if (!user || !user.id) {
+      console.error('❌ AUTHENTICATION FAILED: User not logged in!');
       toast.error('Please login first to create a startup');
       navigate('/login');
       return;
     }
     
+    console.log('✅ User authenticated:', user.username);
+    
+    // Run debug for troubleshooting (optional)
+    debugAuthStatus();
+    
     setLoading(true);
     
     try {
-      console.log('🚀 Creating startup with apiClient...');
+      console.log('🚀 ================ STARTUP CREATION ATTEMPT ================');
       console.log('📋 Form data being sent:', formData);
+      console.log('🚀 Making API call to /api/startups...');
       
       // Ensure data types match backend expectations
+      const allowedCategories = ['saas', 'ecommerce', 'agency', 'other'];
       const cleanedFormData = {
         ...formData,
         // Ensure stages is an array (backend expects ListField)
         stages: Array.isArray(formData.stages) ? formData.stages : [],
-        // Clean empty strings to null for optional fields
-        website_url: formData.website_url || null,
-        revenue: formData.revenue || null,
-        profit: formData.profit || null,
-        asking_price: formData.asking_price || null,
-        ttm_revenue: formData.ttm_revenue || null,
-        ttm_profit: formData.ttm_profit || null,
-        last_month_revenue: formData.last_month_revenue || null,
-        last_month_profit: formData.last_month_profit || null,
-        earn_through: formData.earn_through || null,
-        phase: formData.phase || null,
-        team_size: formData.team_size || null
+        // IMPORTANT: Keep optional fields as empty strings, not null (Django URLField/CharField allow blank but not null)
+        website_url: formData.website_url || '',
+        revenue: formData.revenue || '',
+        profit: formData.profit || '',
+        asking_price: formData.asking_price || '',
+        ttm_revenue: formData.ttm_revenue || '',
+        ttm_profit: formData.ttm_profit || '',
+        last_month_revenue: formData.last_month_revenue || '',
+        last_month_profit: formData.last_month_profit || '',
+        earn_through: formData.earn_through || '',
+        phase: formData.phase || '',
+        team_size: formData.team_size || '',
+        // Map unsupported categories to 'other' (backend only allows saas, ecommerce, agency, other)
+        category: allowedCategories.includes(formData.category) ? formData.category : 'other'
       };
       
       console.log('🧺 Cleaned form data:', cleanedFormData);
@@ -169,11 +171,25 @@ const CreateStartupProject = () => {
         console.error('- Network connectivity problems');
       }
       
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          JSON.stringify(error.response?.data) ||
-                          error.message ||
-                          'Failed to create startup. Please try again.';
+      // Better error message parsing
+      let errorMessage = 'Failed to create startup. Please try again.';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (typeof data === 'string' && data.includes('AnonymousUser')) {
+          errorMessage = 'Authentication failed. Please log in and try again.';
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (typeof data === 'string' && data.length < 200) {
+          errorMessage = data;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
       
       console.error('💬 Error message to user:', errorMessage);
       toast.error(errorMessage);

@@ -30,13 +30,18 @@ const MessageDark = () => {
         MessageService.getConversations(),
         MessageService.getOnlineUsers()
       ]);
-      
-      setConversations(conversationsData);
-      setOnlineUsers(onlineUsersData.filter(u => u.id !== user.id)); // Exclude current user
+
+      const safeConversations = Array.isArray(conversationsData)
+        ? conversationsData
+        : (conversationsData && Array.isArray(conversationsData.results) ? conversationsData.results : []);
+      const safeUsers = Array.isArray(onlineUsersData) ? onlineUsersData : [];
+
+      setConversations(safeConversations);
+      setOnlineUsers(safeUsers.filter(u => u.id !== user.id)); // Exclude current user
       
       // Select first conversation if exists
-      if (conversationsData.length > 0) {
-        await selectConversation(conversationsData[0]);
+      if (safeConversations.length > 0) {
+        await selectConversation(safeConversations[0]);
       }
     } catch (error) {
       console.error('Failed to initialize messaging:', error);
@@ -379,7 +384,7 @@ const MessageDark = () => {
               ) : activeTab === 'conversations' ? (
                 <div>
                   <h2>Conversations</h2>
-                  {conversations.length === 0 ? (
+                  {!Array.isArray(conversations) || conversations.length === 0 ? (
                     <div className="user-item">No conversations yet</div>
                   ) : (
                     conversations.map(conversation => {

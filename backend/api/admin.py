@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Startup, StartupTag, Position, Application, UserSession
+from .models import User, Startup, StartupTag, Position, Application
 
 
 @admin.register(User)
@@ -75,11 +75,3 @@ class ApplicationAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 
-@admin.register(UserSession)
-class UserSessionAdmin(admin.ModelAdmin):
-    """Admin configuration for UserSession model"""
-    list_display = ('user', 'expires_at', 'created_at')
-    list_filter = ('expires_at', 'created_at')
-    search_fields = ('user__username', 'user__email')
-    ordering = ('-created_at',)
-    readonly_fields = ('token_hash', 'created_at')

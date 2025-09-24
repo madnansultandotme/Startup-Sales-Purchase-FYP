@@ -40,7 +40,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'api.middleware.JWTAuthenticationMiddleware',
 ]
 
 ROOT_URLCONF = 'startup_platform.urls'
@@ -116,11 +115,8 @@ AUTH_USER_MODEL = 'api.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'api.authentication.JWTAuthentication',
-    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 12,
@@ -134,18 +130,24 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings
-CORS_ALLOW_CREDENTIALS = True
+# CORS settings - Critical for session cookies to work!
+CORS_ALLOW_CREDENTIALS = True  # Essential for cookies
+CORS_ALLOW_ALL_ORIGINS = False  # Be specific about origins
 
-# Allow all origins during development (more permissive)
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-
-# Specific allowed origins for production
+# Specific allowed origins for development
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
+
+# Allow credentials for these origins specifically
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -173,43 +175,33 @@ CORS_ALLOW_METHODS = [
 # Preflight max age
 CORS_PREFLIGHT_MAX_AGE = 86400
 
-# CSRF Settings
-CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
+# CSRF Settings for Development
+CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = None  # Allow cross-origin for development
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
 CSRF_COOKIE_NAME = 'csrftoken'
 
-# JWT Settings
-JWT_SECRET_KEY = config('JWT_SECRET_KEY', default=SECRET_KEY)
-JWT_ALGORITHM = 'HS256'
-JWT_ACCESS_TOKEN_DELTA = 15 * 60  # 15 minutes in seconds
-JWT_REFRESH_TOKEN_DELTA = 7 * 24 * 60 * 60  # 7 days in seconds
-# Backward compatibility
-JWT_EXPIRATION_DELTA = JWT_REFRESH_TOKEN_DELTA
+# Session Settings - Configured for cross-origin development
+SESSION_COOKIE_SECURE = False  # Must be False for HTTP (localhost)
+SESSION_COOKIE_HTTPONLY = False  # Must be False so frontend can read it
+SESSION_COOKIE_SAMESITE = None  # Must be None for cross-origin requests
+SESSION_COOKIE_AGE = 86400  # 1 day
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_PATH = '/'
+SESSION_COOKIE_DOMAIN = None  # None allows cookies across localhost ports
 
-# Cookie settings for JWT
-JWT_COOKIE_NAME = 'token'
-JWT_COOKIE_SECURE = config('JWT_COOKIE_SECURE', default=False, cast=bool)
-JWT_COOKIE_HTTPONLY = config('JWT_COOKIE_HTTPONLY', default=False, cast=bool)  # False for development
-JWT_COOKIE_SAMESITE = 'Lax'
-JWT_COOKIE_DOMAIN = config('JWT_COOKIE_DOMAIN', default=None)
-JWT_COOKIE_PATH = '/'
-JWT_COOKIE_MAX_AGE = JWT_ACCESS_TOKEN_DELTA
-
-# Refresh token cookie settings
-JWT_REFRESH_COOKIE_NAME = 'refresh_token'
-JWT_REFRESH_COOKIE_HTTPONLY = config('JWT_REFRESH_COOKIE_HTTPONLY', default=False, cast=bool)  # False for development
-JWT_REFRESH_COOKIE_SECURE = JWT_COOKIE_SECURE
-JWT_REFRESH_COOKIE_SAMESITE = 'Lax'
-JWT_REFRESH_COOKIE_MAX_AGE = JWT_REFRESH_TOKEN_DELTA
 
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True

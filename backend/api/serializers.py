@@ -73,13 +73,25 @@ class StartupTagSerializer(serializers.ModelSerializer):
 class PositionSerializer(serializers.ModelSerializer):
 	"""Serializer for positions"""
 	applications_count = serializers.SerializerMethodField()
+    startup = serializers.SerializerMethodField()
 	
 	class Meta:
 		model = Position
-		fields = ('id', 'title', 'description', 'requirements', 'is_active', 'applications_count', 'created_at')
+        fields = ('id', 'title', 'description', 'requirements', 'is_active', 'applications_count', 'created_at', 'startup')
 	
 	def get_applications_count(self, obj):
 		return obj.applications.count()
+
+    def get_startup(self, obj):
+        # Provide minimal startup info needed by JobCard
+        return {
+            'id': str(obj.startup.id),
+            'title': obj.startup.title,
+            'category': obj.startup.category,
+            'earn_through': obj.startup.earn_through,
+            'team_size': obj.startup.team_size,
+            'phase': obj.startup.phase,
+        }
 
 
 class StartupListSerializer(serializers.ModelSerializer):
@@ -154,7 +166,15 @@ class StartupCreateSerializer(serializers.ModelSerializer):
 	
 	def create(self, validated_data):
 		print(f"✅ StartupCreateSerializer: Creating startup with validated data")
-		validated_data['owner'] = self.context['request'].user
+		# Respect owner provided by the view (serializer.save(owner=user))
+		owner = validated_data.get('owner')
+		if owner is None:
+			# Fallback to authenticated request.user only if it's a real user
+			req_user = self.context['request'].user if 'request' in self.context else None
+			if getattr(req_user, 'is_authenticated', False):
+				validated_data['owner'] = req_user
+			else:
+				raise serializers.ValidationError({'owner': 'Authentication required'})
 		return super().create(validated_data)
 
 
@@ -308,8 +328,16 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         fields = ('content', 'message_type', 'attachment')
     
     def create(self, validated_data):
+        # Always set sender from request
         validated_data['sender'] = self.context['request'].user
-        validated_data['conversation'] = self.context['conversation']
+        # Use conversation provided via serializer.save(conversation=...) when available
+        # Fall back to context only if present
+        if 'conversation' not in validated_data:
+            conversation_from_context = self.context.get('conversation')
+            if conversation_from_context is not None:
+                validated_data['conversation'] = conversation_from_context
+            else:
+                raise serializers.ValidationError({'conversation': 'Conversation is required'})
         return super().create(validated_data)
 
 
