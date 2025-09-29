@@ -14,6 +14,37 @@ const Dashboard = () => {
   const [myStartups, setMyStartups] = useState([]);
   const [startupIdToPositions, setStartupIdToPositions] = useState({});
 
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return '-';
+    }
+    return parsed.toLocaleDateString();
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'approved':
+        return `${styles.statusBadge} ${styles.statusApproved}`;
+      case 'rejected':
+        return `${styles.statusBadge} ${styles.statusRejected}`;
+      case 'withdrawn':
+        return `${styles.statusBadge} ${styles.statusWithdrawn}`;
+      default:
+        return `${styles.statusBadge} ${styles.statusPending}`;
+    }
+  };
+
+  const formatStatusLabel = (status) => {
+    if (!status) {
+      return 'Pending';
+    }
+    return status
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   useEffect(() => {
     // Load dashboard data when authentication is complete
     if (!authLoading && isAuthenticated) {
@@ -258,6 +289,52 @@ const Dashboard = () => {
             <p>Connect with startup founders</p>
           </Link>
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2>Recent Applications</h2>
+          <p>Track the latest updates on your collaboration submissions</p>
+        </div>
+
+        {recentActivity.length === 0 ? (
+          <div className={styles.emptyState}>
+            <h3>No applications yet</h3>
+            <p>Ready to get started? Explore collaborations and apply to your favorite startups.</p>
+            <Link to="/collaboration" className={styles.statAction}>
+              Find Collaborations
+            </Link>
+          </div>
+        ) : (
+          <div className={styles.tableWrapper}>
+            <div className={styles.tableHeader}>
+              <div>Startup</div>
+              <div>Position</div>
+              <div>Status</div>
+              <div>Submitted</div>
+              <div></div>
+            </div>
+            {recentActivity.map((application) => (
+              <div key={application.id} className={styles.tableRow}>
+                <div>{application.startup?.title || 'Unknown Startup'}</div>
+                <div>{application.position?.title || 'General Collaboration'}</div>
+                <div>
+                  <span className={getStatusBadgeClass(application.status)}>
+                    {formatStatusLabel(application.status)}
+                  </span>
+                </div>
+                <div>{formatDate(application.created_at)}</div>
+                <div>
+                  {application.startup?.id && (
+                    <Link to={`/startupdetail/${application.startup.id}`} className={styles.statAction}>
+                      View Startup
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

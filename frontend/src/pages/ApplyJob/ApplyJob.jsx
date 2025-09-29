@@ -308,9 +308,9 @@ const ApplyJob = () => {
           <button 
             type="submit" 
             className={styles.submitBtn}
-            disabled={submitting}
+            disabled={submitting || uploadingResume}
           >
-            {submitting ? 'Submitting...' : 'Submit Application'}
+            {uploadingResume ? 'Uploading resume...' : (submitting ? 'Submitting...' : 'Submit Application')}
           </button>
         </div>
       </form>

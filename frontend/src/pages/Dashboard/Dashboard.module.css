@@ -125,6 +125,168 @@
   line-height: 1.4;
 }
 
+.section {
+  margin-top: 2rem;
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sectionHeader h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.sectionHeader p {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.emptyState {
+  text-align: center;
+  background: #f8fafc;
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.emptyState h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.emptyState p {
+  margin-bottom: 1rem;
+}
+
+.listGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.itemCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.itemHeader h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.itemHeader p {
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.itemActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.emptyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-top: 1px dashed #e2e8f0;
+  color: #6b7280;
+}
+
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tableHeader,
+.tableRow {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 1fr 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.tableHeader {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.tableRow {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1f2937;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableRow div:last-child {
+  justify-self: start;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.statusPending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #b45309;
+}
+
+.statusApproved {
+  background: rgba(34, 197, 94, 0.15);
+  color: #047857;
+}
+
+.statusRejected {
+  background: rgba(248, 113, 113, 0.15);
+  color: #b91c1c;
+}
+
+.statusWithdrawn {
+  background: rgba(156, 163, 175, 0.15);
+  color: #4b5563;
+}
+
 @media (max-width: 768px) {
   .welcome h1 {
     font-size: 2rem;
@@ -140,5 +302,15 @@
   
   .actionGrid {
     grid-template-columns: 1fr;
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1.5fr 1.5fr 1fr;
+  }
+
+  .tableHeader div:nth-child(n + 4),
+  .tableRow div:nth-child(n + 4) {
+    display: none;
   }
 }
