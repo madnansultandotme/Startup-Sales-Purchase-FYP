@@ -1310,6 +1310,14 @@ class ConversationListView(generics.ListCreateAPIView):
 		context['current_user'] = get_session_user(self.request)
 		return context
 
+	def list(self, request, *args, **kwargs):
+		user = get_session_user(request)
+		if not user:
+			return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+		queryset = self.filter_queryset(self.get_queryset())
+		serializer = self.get_serializer(queryset, many=True)
+		return Response(serializer.data)
+
 	def create(self, request, *args, **kwargs):
 		user = get_session_user(request)
 		if not user:
@@ -1374,6 +1382,14 @@ class MessageListView(generics.ListCreateAPIView):
 		context = super().get_serializer_context()
 		context['current_user'] = get_session_user(self.request)
 		return context
+
+	def list(self, request, *args, **kwargs):
+		user = get_session_user(request)
+		if not user:
+			return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+		queryset = self.filter_queryset(self.get_queryset())
+		serializer = self.get_serializer(queryset, many=True)
+		return Response(serializer.data)
 
 	def create(self, request, *args, **kwargs):
 		user = get_session_user(request)

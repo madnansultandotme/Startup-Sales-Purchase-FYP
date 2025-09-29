@@ -1,16 +1,31 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.urls import reverse
 import json
+import bcrypt
 from .models import Startup, StartupTag, Position, Application
 from .messaging_models import Conversation
 
 User = get_user_model()
 
 
-class AuthenticationTestCase(APITestCase):
+class BcryptUserMixin:
+    """Test helper mixin to create users with bcrypt-hashed passwords"""
+
+    def create_bcrypt_user(self, username='testuser', email='test@example.com', password='testpassword123', **extra):
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        defaults = {
+            'username': username,
+            'email': email,
+            'password': hashed_password,
+        }
+        defaults.update(extra)
+        return User.objects.create(**defaults)
+
+
+class AuthenticationTestCase(BcryptUserMixin, APITestCase):
     """Test cases for authentication endpoints"""
     
     def setUp(self):
@@ -32,8 +47,8 @@ class AuthenticationTestCase(APITestCase):
     
     def test_user_login(self):
         """Test user login"""
-        # Create user first
-        user = User.objects.create_user(
+        # Create user first with bcrypt password
+        self.create_bcrypt_user(
             username=self.user_data['username'],
             email=self.user_data['email'],
             password=self.user_data['password']
@@ -58,11 +73,11 @@ class AuthenticationTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class StartupTestCase(APITestCase):
+class StartupTestCase(BcryptUserMixin, APITestCase):
     """Test cases for startup endpoints"""
     
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = self.create_bcrypt_user(
             username='testuser',
             email='test@example.com',
             password='testpassword123'
@@ -115,11 +130,11 @@ class StartupTestCase(APITestCase):
         self.assertEqual(response.data['title'], startup.title)
 
 
-class ApplicationTestCase(APITestCase):
+class ApplicationTestCase(BcryptUserMixin, APITestCase):
     """Test cases for application endpoints"""
     
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = self.create_bcrypt_user(
             username='testuser',
             email='test@example.com',
             password='testpassword123'
@@ -174,11 +189,11 @@ class ApplicationTestCase(APITestCase):
         self.assertIn('results', response.data)
 
 
-class SearchTestCase(APITestCase):
+class SearchTestCase(BcryptUserMixin, APITestCase):
     """Test cases for search functionality"""
     
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = self.create_bcrypt_user(
             username='testuser',
             email='test@example.com',
             password='testpassword123'
@@ -207,7 +222,7 @@ class SearchTestCase(APITestCase):
         response = self.client.get(url, {'q': 'AI'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('results', response.data)
-        self.assertIn('totalResults', response.data)
+        self.assertIn('count', response.data)
     
     def test_search_with_filters(self):
         """Test searching with type filter"""
@@ -217,16 +232,16 @@ class SearchTestCase(APITestCase):
         self.assertIn('results', response.data)
 
 
-class MessagingTestCase(APITestCase):
+class MessagingTestCase(BcryptUserMixin, APITestCase):
     """Test cases for messaging endpoints"""
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = self.create_bcrypt_user(
             username='messaging-user',
             email='messaging@example.com',
             password='securepassword123'
         )
-        self.other_user = User.objects.create_user(
+        self.other_user = self.create_bcrypt_user(
             username='other-user',
             email='other@example.com',
             password='securepassword123'
@@ -258,3 +273,70 @@ class MessagingTestCase(APITestCase):
         self.assertIn('id', response.data)
         self.assertEqual(response.data['content'], payload['content'])
         self.assertEqual(response.data['sender']['id'], str(self.user.id))
+
+
+class MessagingAPITestCase(BcryptUserMixin, APITestCase):
+    """End-to-end messaging flow tests using real authentication"""
+
+    def setUp(self):
+        self.password = 'securepassword123'
+        self.user_one = self.create_bcrypt_user(
+            username='api-user-one',
+            email='api-user-one@example.com',
+            password=self.password
+        )
+        self.user_two = self.create_bcrypt_user(
+            username='api-user-two',
+            email='api-user-two@example.com',
+            password=self.password
+        )
+        self.login_url = reverse('login')
+        self.conversations_url = reverse('conversations_list')
+
+    def authenticate(self, client, email, password):
+        response = client.post(self.login_url, {
+            'email': email,
+            'password': password
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        token = response.data.get('auth_token')
+        self.assertIsNotNone(token)
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        return response
+
+    def test_conversation_listing_requires_authentication(self):
+        unauthenticated_client = APIClient()
+        response = unauthenticated_client.get(self.conversations_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('error', response.data)
+
+    def test_full_messaging_flow_between_two_users(self):
+        client_one = APIClient()
+        self.authenticate(client_one, self.user_one.email, self.password)
+
+        create_response = client_one.post(self.conversations_url, {
+            'participant_ids': [str(self.user_two.id)]
+        }, format='json')
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        conversation_id = create_response.data['id']
+
+        messages_url = reverse('messages_list', kwargs={'conversation_id': conversation_id})
+        send_response = client_one.post(messages_url, {
+            'content': 'Hello from user one!',
+            'message_type': 'text'
+        }, format='json')
+        self.assertEqual(send_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(send_response.data['sender']['id'], str(self.user_one.id))
+
+        client_two = APIClient()
+        self.authenticate(client_two, self.user_two.email, self.password)
+        list_response = client_two.get(self.conversations_url)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]['id'], conversation_id)
+
+        messages_response = client_two.get(messages_url)
+        self.assertEqual(messages_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(messages_response.data), 1)
+        self.assertEqual(messages_response.data[0]['content'], 'Hello from user one!')
+        self.assertEqual(messages_response.data[0]['sender']['id'], str(self.user_one.id))
