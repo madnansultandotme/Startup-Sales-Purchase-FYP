@@ -16,6 +16,7 @@ const ApplyJob = () => {
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
   const [formData, setFormData] = useState({
     position_id: '',
     cover_letter: '',
@@ -106,25 +107,55 @@ const ApplyJob = () => {
     setSubmitting(true);
     
     try {
-      const submitData = new FormData();
-      if (formData.position_id) {
-        submitData.append('position_id', formData.position_id);
-      }
-      submitData.append('cover_letter', formData.cover_letter);
-      submitData.append('experience', formData.experience);
-      submitData.append('portfolio_url', formData.portfolio_url);
+      let portfolioUrl = formData.portfolio_url.trim();
+
       if (formData.resume) {
-        submitData.append('resume', formData.resume);
+        try {
+          setUploadingResume(true);
+          const resumeData = new FormData();
+          resumeData.append('file', formData.resume);
+
+          const resumeResponse = await apiClient.post('/api/upload/resume', resumeData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+
+          portfolioUrl = resumeResponse.data?.file_url || resumeResponse.data?.file || portfolioUrl;
+        } catch (uploadError) {
+          console.error('Failed to upload resume:', uploadError);
+          toast.error('Failed to upload resume. Please try again.');
+          return;
+        } finally {
+          setUploadingResume(false);
+        }
       }
 
-      await apiClient.post(`/api/collaborations/${startupId}/apply`, submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const payload = {
+        cover_letter: formData.cover_letter.trim(),
+        experience: formData.experience.trim(),
+      };
+
+      if (formData.position_id) {
+        payload.position_id = formData.position_id;
+      }
+
+      if (portfolioUrl) {
+        payload.portfolio_url = portfolioUrl;
+      }
+
+      await apiClient.post(`/api/collaborations/${startupId}/apply`, payload);
       
-      toast.success('Application submitted successfully!');
-      navigate('/dashboard');
+      toast.success('Application submitted successfully! You can track the status from your dashboard.');
+      setFormData({
+        position_id: '',
+        cover_letter: '',
+        experience: '',
+        portfolio_url: '',
+        resume: null
+      });
+      setSelectedPosition(null);
+      navigate('/dashboard?tab=applications');
     } catch (error) {
       console.error('Failed to submit application:', error);
       toast.error('Failed to submit application. Please try again.');
