@@ -1305,6 +1305,35 @@ class ConversationListView(generics.ListCreateAPIView):
 			return ConversationCreateSerializer
 		return ConversationSerializer
 
+	def get_serializer_context(self):
+		context = super().get_serializer_context()
+		context['current_user'] = get_session_user(self.request)
+		return context
+
+	def create(self, request, *args, **kwargs):
+		user = get_session_user(request)
+		if not user:
+			return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		participant_ids = serializer.validated_data.get('participant_ids', [])
+		# If this is a direct chat (single other participant), reuse existing conversation when available
+		if participant_ids and len(participant_ids) == 1:
+			target_id = str(participant_ids[0])
+			if target_id != str(user.id):
+				existing = Conversation.objects.filter(
+					participants=user,
+					is_active=True
+				).filter(participants__id=target_id).order_by('-updated_at').first()
+				if existing:
+					read_serializer = ConversationSerializer(existing, context={'request': request})
+					return Response(read_serializer.data, status=status.HTTP_200_OK)
+		conversation = serializer.save()
+		conversation.refresh_from_db()
+		read_serializer = ConversationSerializer(conversation, context={'request': request})
+		headers = self.get_success_headers(read_serializer.data)
+		return Response(read_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 class ConversationDetailView(generics.RetrieveAPIView):
 	"""Get conversation details"""
@@ -1340,20 +1369,32 @@ class MessageListView(generics.ListCreateAPIView):
 		if self.request.method == 'POST':
 			return MessageCreateSerializer
 		return MessageSerializer
-	
-	def perform_create(self, serializer):
-		conversation_id = self.kwargs.get('conversation_id')
-		user = get_session_user(self.request)
+
+	def get_serializer_context(self):
+		context = super().get_serializer_context()
+		context['current_user'] = get_session_user(self.request)
+		return context
+
+	def create(self, request, *args, **kwargs):
+		user = get_session_user(request)
 		if not user:
-			raise PermissionDenied("Authentication required")
+			return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+		conversation_id = self.kwargs.get('conversation_id')
 		try:
 			conversation = Conversation.objects.get(
 				id=conversation_id,
-				participants=user
+				participants=user,
+				is_active=True
 			)
-			serializer.save(conversation=conversation)
 		except Conversation.DoesNotExist:
 			raise PermissionDenied("Conversation not found")
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		message = serializer.save(conversation=conversation, sender=user)
+		conversation.save(update_fields=['updated_at'])
+		read_serializer = MessageSerializer(message, context={'request': request})
+		headers = self.get_success_headers(read_serializer.data)
+		return Response(read_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 @api_view(['GET'])

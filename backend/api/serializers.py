@@ -73,25 +73,25 @@ class StartupTagSerializer(serializers.ModelSerializer):
 class PositionSerializer(serializers.ModelSerializer):
 	"""Serializer for positions"""
 	applications_count = serializers.SerializerMethodField()
-    startup = serializers.SerializerMethodField()
-	
+	startup = serializers.SerializerMethodField()
+
 	class Meta:
 		model = Position
-        fields = ('id', 'title', 'description', 'requirements', 'is_active', 'applications_count', 'created_at', 'startup')
-	
+		fields = ('id', 'title', 'description', 'requirements', 'is_active', 'applications_count', 'created_at', 'startup')
+
 	def get_applications_count(self, obj):
 		return obj.applications.count()
 
-    def get_startup(self, obj):
-        # Provide minimal startup info needed by JobCard
-        return {
-            'id': str(obj.startup.id),
-            'title': obj.startup.title,
-            'category': obj.startup.category,
-            'earn_through': obj.startup.earn_through,
-            'team_size': obj.startup.team_size,
-            'phase': obj.startup.phase,
-        }
+	def get_startup(self, obj):
+		# Provide minimal startup info needed by JobCard
+		return {
+			'id': str(obj.startup.id),
+			'title': obj.startup.title,
+			'category': obj.startup.category,
+			'earn_through': obj.startup.earn_through,
+			'team_size': obj.startup.team_size,
+			'phase': obj.startup.phase,
+		}
 
 
 class StartupListSerializer(serializers.ModelSerializer):
@@ -303,42 +303,63 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 class ConversationCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating conversations"""
-    participant_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        write_only=True
-    )
-    
-    class Meta:
-        model = Conversation
-        fields = ('title', 'participant_ids')
-    
-    def create(self, validated_data):
-        participant_ids = validated_data.pop('participant_ids')
-        conversation = Conversation.objects.create(**validated_data)
-        conversation.participants.set(participant_ids)
-        return conversation
+	"""Serializer for creating conversations"""
+	participant_ids = serializers.ListField(
+		child=serializers.UUIDField(),
+		write_only=True
+	)
+
+	class Meta:
+		model = Conversation
+		fields = ('title', 'participant_ids')
+
+	def create(self, validated_data):
+		participant_ids = set(str(pid) for pid in validated_data.pop('participant_ids', []))
+		request = self.context.get('request')
+		current_user = self.context.get('current_user')
+		if not current_user and request is not None:
+			candidate = getattr(request, 'user', None)
+			if getattr(candidate, 'is_authenticated', False):
+				current_user = candidate
+		if not current_user or not getattr(current_user, 'is_authenticated', False):
+			raise serializers.ValidationError({'participant_ids': 'Authentication required'})
+		participant_ids.add(str(current_user.id))
+		if len(participant_ids) <= 1:
+			raise serializers.ValidationError({'participant_ids': 'Please include at least one other participant'})
+		participants = User.objects.filter(id__in=participant_ids, is_active=True)
+		if participants.count() != len(participant_ids):
+			raise serializers.ValidationError({'participant_ids': 'One or more participants are invalid'})
+		conversation = Conversation.objects.create(**validated_data)
+		conversation.participants.set(participants)
+		conversation.save(update_fields=['updated_at'])
+		return conversation
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating messages"""
-    
-    class Meta:
-        model = Message
-        fields = ('content', 'message_type', 'attachment')
-    
-    def create(self, validated_data):
-        # Always set sender from request
-        validated_data['sender'] = self.context['request'].user
-        # Use conversation provided via serializer.save(conversation=...) when available
-        # Fall back to context only if present
-        if 'conversation' not in validated_data:
-            conversation_from_context = self.context.get('conversation')
-            if conversation_from_context is not None:
-                validated_data['conversation'] = conversation_from_context
-            else:
-                raise serializers.ValidationError({'conversation': 'Conversation is required'})
-        return super().create(validated_data)
+	"""Serializer for creating messages"""
+
+	class Meta:
+		model = Message
+		fields = ('content', 'message_type', 'attachment')
+
+	def create(self, validated_data):
+		conversation = validated_data.get('conversation') or self.context.get('conversation')
+		if conversation is None:
+			raise serializers.ValidationError({'conversation': 'Conversation is required'})
+		sender = validated_data.get('sender')
+		if sender is None:
+			current_user = self.context.get('current_user')
+			if not current_user:
+				request = self.context.get('request')
+				candidate = getattr(request, 'user', None) if request is not None else None
+				if getattr(candidate, 'is_authenticated', False):
+					current_user = candidate
+			if not current_user or not getattr(current_user, 'is_authenticated', False):
+				raise serializers.ValidationError({'sender': 'Authentication required'})
+			sender = current_user
+		validated_data['sender'] = sender
+		validated_data['conversation'] = conversation
+		return super().create(validated_data)
 
 
 # User Profile Serializers

@@ -5,7 +5,7 @@ from rest_framework import status
 from django.urls import reverse
 import json
 from .models import Startup, StartupTag, Position, Application
-from .authentication import create_jwt_token
+from .messaging_models import Conversation
 
 User = get_user_model()
 
@@ -67,8 +67,7 @@ class StartupTestCase(APITestCase):
             email='test@example.com',
             password='testpassword123'
         )
-        self.token = create_jwt_token(self.user)
-        self.client.cookies['token'] = self.token
+        self.client.force_login(self.user)
         
         self.startup_data = {
             'title': 'Test Startup',
@@ -125,8 +124,7 @@ class ApplicationTestCase(APITestCase):
             email='test@example.com',
             password='testpassword123'
         )
-        self.token = create_jwt_token(self.user)
-        self.client.cookies['token'] = self.token
+        self.client.force_login(self.user)
         
         # Create a startup and position
         self.startup = Startup.objects.create(
@@ -217,3 +215,46 @@ class SearchTestCase(APITestCase):
         response = self.client.get(url, {'q': 'startup', 'type': 'marketplace'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('results', response.data)
+
+
+class MessagingTestCase(APITestCase):
+    """Test cases for messaging endpoints"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='messaging-user',
+            email='messaging@example.com',
+            password='securepassword123'
+        )
+        self.other_user = User.objects.create_user(
+            username='other-user',
+            email='other@example.com',
+            password='securepassword123'
+        )
+        self.conversations_url = reverse('conversations_list')
+        self.client.force_login(self.user)
+
+    def test_create_conversation_includes_current_user(self):
+        payload = {
+            'participant_ids': [str(self.other_user.id)],
+            'title': 'Test Chat'
+        }
+        response = self.client.post(self.conversations_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('id', response.data)
+        participant_ids = {participant['id'] for participant in response.data['participants']}
+        self.assertSetEqual(participant_ids, {str(self.user.id), str(self.other_user.id)})
+
+    def test_send_message_returns_full_payload(self):
+        conversation = Conversation.objects.create(title='Existing Chat')
+        conversation.participants.set([self.user, self.other_user])
+        messages_url = reverse('messages_list', kwargs={'conversation_id': conversation.id})
+        payload = {
+            'content': 'Hello there!',
+            'message_type': 'text'
+        }
+        response = self.client.post(messages_url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('id', response.data)
+        self.assertEqual(response.data['content'], payload['content'])
+        self.assertEqual(response.data['sender']['id'], str(self.user.id))
